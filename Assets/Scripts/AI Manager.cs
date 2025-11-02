@@ -36,21 +36,28 @@ public class AIManager : MonoBehaviour
             Vector3 steering = Vector3.zero;
             if (curBehaviour == 0)
                 steering = SeekSteering(birdPos, birdsVelocities[i], targetPos);
-            else if(curBehaviour == 1)
+            else if (curBehaviour == 1)
                 steering = FleeSteering(birdPos, birdsVelocities[i], targetPos);
             else if (curBehaviour == 2)
                 steering = ArrivalSteering(birdPos, birdsVelocities[i], targetPos);
             else if (curBehaviour == 3)
                 steering = DepartureSteering(birdPos, birdsVelocities[i], targetPos);
-            else if(curBehaviour == 4)
+            else if (curBehaviour == 4)
             {
-                if(i == 0)
+                if (i == 0)
                     steering = ArrivalSteering(birdPos, birdsVelocities[i], targetPos);
                 else
                 {
                     GameObject leader = birds[0];
-                    steering = LeaderSteering(leader.transform.position, leader.transform.right, birdsVelocities[0], birdPos, birdsVelocities[i]); 
+                    steering = LeaderSteering(leader.transform, birdsVelocities[0], birdPos, birdsVelocities[i]);
                 }
+            }
+            else if (curBehaviour == 5)
+            {
+                steering = SeparationSteering(birds[i], birds);
+
+                if (steering.sqrMagnitude < 0.0001f)
+                    birdsVelocities[i] = Vector3.zero;
             }
 
             birdsVelocities[i] += steering * Time.deltaTime;
@@ -115,13 +122,16 @@ public class AIManager : MonoBehaviour
         return Vector3.ClampMagnitude(steer, maxForce);
     }
 
-    private Vector3 LeaderSteering(Vector3 leaderPos, Vector3 leaderVel, Vector3 leaderRight, Vector3 position, Vector3 velocity)
+    private Vector3 LeaderSteering(Transform leaderTransform, Vector3 leaderVel, Vector3 position, Vector3 velocity)
     {
-        Vector3 leaderDir = leaderVel.normalized;
-        const float followDistance = 10.0f;
+        Vector3 leaderPos = leaderTransform.position;
+        Vector3 leaderDir = leaderTransform.forward;
+        Vector3 leaderRight = leaderTransform.right;
+        const float followDistance = 8.0f;
         const float safeDistance = 2.0f;
-        const float frontAvoidDistance = 20.0f;
-        const float frontAvoidAngle = 120.0f; // degrees;
+        const float frontAvoidPathRadius = 10.0f;
+        const float frontAvoidPathAngle = 60.0f; // degrees
+        float avoidLeaderPathForce = maxForce * 10.0f;
 
         Vector3 steering = Vector3.zero;
 
@@ -138,17 +148,61 @@ public class AIManager : MonoBehaviour
         Vector3 toFollower = (position - leaderPos).normalized;
         float dot = Vector3.Dot(leaderDir, toFollower);
 
-        if (dot > Mathf.Cos(frontAvoidAngle * Mathf.Deg2Rad) &&
-            dist < frontAvoidDistance)
+        if(dot > Mathf.Cos(frontAvoidPathAngle * Mathf.Deg2Rad) && 
+            DistancePointToRay(position, leaderPos, leaderDir) < frontAvoidPathRadius)
         {
             // steer to the side of the leader's direction
             Vector3 sideDir = leaderRight;
-            sideDir *= (Random.value > 0.5f ? 1f : -1f);
-            steering += sideDir * (maxForce * 100.0f);
+            if(Vector3.Dot(-leaderDir, toFollower) > Vector3.Dot(leaderRight, toFollower))
+                sideDir = -leaderRight;
+            steering += sideDir * avoidLeaderPathForce;
         }
 
         // Combine all forces
         steering = Vector3.ClampMagnitude(steering, maxForce);
+        return steering;
+    }
+
+    private float DistancePointToRay(Vector3 point, Vector3 origin, Vector3 dir)
+    {
+        Vector3 toPoint = point - origin;
+        float t = Vector3.Dot(toPoint, dir);
+
+        // If t < 0, the closest point is behind the ray origin
+        if (t < 0f)
+            return Vector3.Distance(point, origin);
+
+        Vector3 closest = origin + dir * t;
+        return Vector3.Distance(point, closest);
+    }
+
+    private Vector3 SeparationSteering(GameObject self, List<GameObject> flock)
+    {
+        const float separationRadius = 8.0f;
+        const float repelForce = 6.0f;
+        Vector3 steering = Vector3.zero;
+        int count = 0;
+
+        foreach (GameObject bird in flock)
+        {
+            if (bird == self) continue;
+
+            float distance = Vector3.Distance(self.transform.position, bird.transform.position);
+            if (distance > 0 && distance < separationRadius)
+            {
+                // Repel stronger when closer
+                Vector3 diff = (self.transform.position - bird.transform.position).normalized;
+                diff /= distance; // weight by proximity
+                steering += diff;
+                count++;
+            }
+        }
+
+        if (count > 0)
+            steering /= count; // average all forces
+
+        steering = Vector3.ClampMagnitude(steering * repelForce, maxForce);
+
         return steering;
     }
 }
