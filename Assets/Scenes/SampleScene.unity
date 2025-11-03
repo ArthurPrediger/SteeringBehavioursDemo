@@ -888,7 +888,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 287, y: 499}
+  m_AnchoredPosition: {x: 285, y: 499}
   m_SizeDelta: {x: 140, y: 45}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &647380943
@@ -2065,6 +2065,7 @@ GameObject:
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
   - component: {fileID: 963194229}
+  - component: {fileID: 963194230}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -2159,8 +2160,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 64
-  mouseSensitivity: 1024
+  mouseSensitivity: 256
   movementEnabled: 1
+--- !u!114 &963194230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 568c1dbedb332754da775d234eacf08d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1056833448 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4292170788808701894, guid: 67b8ef3255b70da47ba90a32ede878df, type: 3}
