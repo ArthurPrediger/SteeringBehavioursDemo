@@ -31,7 +31,7 @@ public class AIManager : MonoBehaviour
         for (int i = 0; i < birds.Count; ++i)
         {
             Vector3 birdPos = birds[i].transform.position;
-            Vector3 targetPos = target.transform.position;
+            Vector3 targetPos = target.transform.position + (Vector3.up * target.GetComponent<Renderer>().bounds.extents.y * 2f);
 
             Vector3 steering = Vector3.zero;
             if (curBehaviour == 0)
@@ -58,6 +58,23 @@ public class AIManager : MonoBehaviour
 
                 if (steering.sqrMagnitude < 0.0001f)
                     birdsVelocities[i] = Vector3.zero;
+            }
+            else if (curBehaviour == 6)
+            {
+                steering = CohesionSteering(birds[i], birdsVelocities[i], birds);
+            }
+            else if (curBehaviour == 7)
+            {
+                if (i == 0)
+                    steering = ArrivalSteering(birdPos, birdsVelocities[i], targetPos);
+                else
+                {
+                    GameObject leader = birds[0];
+                    steering = LeaderSteering(leader.transform, birdsVelocities[0], birdPos, birdsVelocities[i]) +
+                        SeparationSteering(birds[i], birds) * 4f +
+                        CohesionSteering(birds[i], birdsVelocities[i], birds) + 
+                        AlignmentSteering(birds[i], birdsVelocities[i], birds, birdsVelocities);
+                }
             }
 
             birdsVelocities[i] += steering * Time.deltaTime;
@@ -178,7 +195,7 @@ public class AIManager : MonoBehaviour
 
     private Vector3 SeparationSteering(GameObject self, List<GameObject> flock)
     {
-        const float separationRadius = 8.0f;
+        const float separationRadius = 5.0f;
         const float repelForce = 6.0f;
         Vector3 steering = Vector3.zero;
         int count = 0;
@@ -204,5 +221,62 @@ public class AIManager : MonoBehaviour
         steering = Vector3.ClampMagnitude(steering * repelForce, maxForce);
 
         return steering;
+    }
+
+    private Vector3 AlignmentSteering(GameObject self, Vector3 velocity, List<GameObject> flock, List<Vector3> flockVelocities)
+    {
+        const float alignmentRadius = 10.0f;
+        Vector3 sum = Vector3.zero;
+        int count = 0;
+
+        int i = 0;
+        foreach (GameObject bird in flock)
+        {
+            if (bird == self) continue;
+
+            float distance = Vector3.Distance(self.transform.position, bird.transform.position);
+            if (distance < alignmentRadius)
+            {
+                sum += birdsVelocities[i++];  // use neighbor’s current velocity
+                count++;
+            }
+        }
+
+        if (count > 0)
+        {
+            Vector3 average = sum / count;
+            Vector3 desired = average.normalized * maxSpeed;
+            Vector3 steer = desired - velocity;
+            return Vector3.ClampMagnitude(steer, maxForce);
+        }
+
+        return Vector3.zero;
+    }
+
+    private Vector3 CohesionSteering(GameObject self, Vector3 velocity, List<GameObject> flock)
+    {
+        const float cohesionRadius = 20.0f;
+        Vector3 center = Vector3.zero;
+        int count = 0;
+
+        foreach (GameObject bird in flock)
+        {
+            if (bird == self) continue;
+
+            float distance = Vector3.Distance(self.transform.position, bird.transform.position);
+            if (distance < cohesionRadius)
+            {
+                center += bird.transform.position;
+                count++;
+            }
+        }
+
+        if (count > 0)
+        {
+            center /= count; // average neighbor positions
+            return ArrivalSteering(self.transform.position, velocity, center); // use your existing Seek() or Arrival()
+        }
+
+        return Vector3.zero;
     }
 }
